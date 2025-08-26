@@ -75,7 +75,6 @@ def computeLoss(
     validationLoss = 0
     for X, y in dataloader:
         target = F.one_hot(y.long(), 10).float()
-        print(f"X.shape: {X.shape}, y.shape: {y.shape}")
         validationLoss += loss_fn(model(X), target)
     return validationLoss / len(dataloader)
 
