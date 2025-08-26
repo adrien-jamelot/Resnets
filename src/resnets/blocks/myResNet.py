@@ -37,7 +37,7 @@ class ResNet18(nn.Module):
 class ResNetMini(nn.Module):
     def __init__(self, scale=16):
         super().__init__()
-        self.conv1_x = Conv2d(3, 3, 7, 2)
+        self.conv1_x = Conv2d(3, scale, 7, 2)
         self.max_pooling1 = MaxPool2d(3, 2, 1)
         self.conv2_x = nn.Sequential(ResidualBlock(scale, scale, 3))
         self.global_average_pooling = AdaptiveAvgPool2d((1, 1))
