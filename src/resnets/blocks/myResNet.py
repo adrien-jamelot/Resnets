@@ -1,7 +1,12 @@
 from torch import Tensor
 from torch.nn import Conv2d, AdaptiveAvgPool2d, MaxPool2d
 from torch import nn
-from resnets.blocks.ResidualBlock import ResidualBlockWithDownsampling, ResidualBlock
+from resnets.blocks.ResidualBlock import (
+    ResidualBlockWithDownsampling,
+    ResidualBlock,
+    LMBlock,
+)
+import torch
 
 
 class ResNet18(nn.Module):
@@ -69,6 +74,30 @@ class ResNetMiniDeep(nn.Module):
         conv2 = pool1
         for block in self.conv2_x:
             conv2 = block(conv2)
+        gap = self.global_average_pooling(conv2).flatten(1)
+        fc = self.fc(gap)
+        return fc
+
+
+class LMResNetMiniDeep(nn.Module):
+    def __init__(self, scale=1):
+        super().__init__()
+        self.conv1_x = Conv2d(3, scale, 3, 2)
+        self.max_pooling1 = MaxPool2d(3, 2, 1)
+        self.initLM = ResidualBlock(scale, scale, 3)
+        self.conv2_x = nn.ModuleList([LMBlock(scale, scale, 3) for _ in range(32)])
+        self.global_average_pooling = AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(scale, 10)
+
+    def forward(self, x: Tensor):
+        conv1 = self.conv1_x(x)
+        pool1 = self.max_pooling1(conv1)
+        conv2 = torch.concat(
+            [pool1.unsqueeze(-1), self.initLM(pool1).unsqueeze(-1)], -1
+        )
+        for block in self.conv2_x:
+            conv2 = block(conv2)
+        conv2 = conv2[..., 1]
         gap = self.global_average_pooling(conv2).flatten(1)
         fc = self.fc(gap)
         return fc

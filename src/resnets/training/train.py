@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 
 import torchvision
 import torchvision.transforms as transforms
-from resnets.blocks.myResNet import ResNetMini, ResNetMiniDeep
+from resnets.blocks.myResNet import ResNetMini, ResNetMiniDeep, LMResNetMiniDeep
 
 
 def load():
@@ -69,13 +69,13 @@ def train():
     #     "truck",
     # )
 
-    modelChoice = ResNetMiniDeep()
-    modelName = "ResNetMiniDeep"
+    modelChoice = LMResNetMiniDeep()
+    modelName = "LMResNetMiniDeep"
     loss_fn = nn.CrossEntropyLoss()
     globalParameters = GlobalParameters(randomSeed=42)
 
     trainingParameters = TrainingParameters(
-        epochs=10,
+        epochs=2,
         learningRate=5e-3,
         betas=(0.9, 0.8),
         optimizer="Adam",
