@@ -50,3 +50,25 @@ class ResNetMini(nn.Module):
         gap = self.global_average_pooling(conv2).flatten(1)
         fc = self.fc(gap)
         return fc
+
+
+class ResNetMiniDeep(nn.Module):
+    def __init__(self, scale=1):
+        super().__init__()
+        self.conv1_x = Conv2d(3, scale, 3, 2)
+        self.max_pooling1 = MaxPool2d(3, 2, 1)
+        self.conv2_x = nn.ModuleList(
+            [ResidualBlock(scale, scale, 3) for _ in range(128)]
+        )
+        self.global_average_pooling = AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(scale, 10)
+
+    def forward(self, x: Tensor):
+        conv1 = self.conv1_x(x)
+        pool1 = self.max_pooling1(conv1)
+        conv2 = pool1
+        for block in self.conv2_x:
+            conv2 = block(conv2)
+        gap = self.global_average_pooling(conv2).flatten(1)
+        fc = self.fc(gap)
+        return fc
