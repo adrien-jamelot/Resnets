@@ -5,6 +5,16 @@
 *~
 *egg-info*
 /mlruns/
+*txt
 *.txt
 .txt
 .*.txt
+/Makefile
+*\#*
+.#.
+#
+\\\\#
+\\#
+*\\#*
+*.txt
+resnet_summary.txt

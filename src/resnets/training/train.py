@@ -71,6 +71,7 @@ def train():
 
     modelChoice = LMResNetMiniDeep()
     modelName = "LMResNetMiniDeep"
+    experimentName = "ResNet flavors"
     loss_fn = nn.CrossEntropyLoss()
     globalParameters = GlobalParameters(randomSeed=42)
 
@@ -93,7 +94,9 @@ def train():
         lr=trainingParameters.learningRate,
         betas=trainingParameters.betas,
     )
+    mlflow.set_experiment(experiment_name=experimentName)
     with mlflow.start_run():
+        mlflow.log_params(trainingParameters.model_dump())
         # Log model summary.
         with open("resnet_summary.txt", "w") as f:
             f.write(str(summary(modelChoice)))

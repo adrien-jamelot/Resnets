@@ -80,12 +80,16 @@ class ResNetMiniDeep(nn.Module):
 
 
 class LMResNetMiniDeep(nn.Module):
-    def __init__(self, scale=1):
+    def __init__(self, scale=16):
         super().__init__()
         self.conv1_x = Conv2d(3, scale, 3, 2)
         self.max_pooling1 = MaxPool2d(3, 2, 1)
         self.initLM = ResidualBlock(scale, scale, 3)
-        self.conv2_x = nn.ModuleList([LMBlock(scale, scale, 3) for _ in range(32)])
+        self.conv2_x = nn.ModuleList([LMBlock(scale, scale, 3) for _ in range(2)])
+        self.downSample = ResidualBlockWithDownsampling(scale, scale * 2, 3)
+        self.conv3_x = nn.ModuleList(
+            [LMBlock(scale * 2, scale * 2, 3) for _ in range(2)]
+        )
         self.global_average_pooling = AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(scale, 10)
 
