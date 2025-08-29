@@ -8,6 +8,7 @@ from torch.optim import Optimizer
 import mlflow
 import torch.nn.functional as F
 import math
+from torchmetrics.classification import MulticlassAccuracy
 
 
 def runOneEpoch(
@@ -28,21 +29,31 @@ def runOneEpoch(
     for batchIndex, (X, y) in enumerate(trainingDataloader):
         pred, loss = trainingStep(X, y, model, loss_fn, optimizer)
         if batchIndex % logFrequency == 0:
-            lossValue = loss.item()
-            printTrainingStatus(
-                lossValue,
-                batchIndex,
-                datasetSize,
-                batchSize,
-            )
-            mlflow.log_metric(
-                key="Training Loss",
-                value=lossValue,
-                step=(
-                    (nbBatches // logFrequency + 1) * logFrequency * epoch + batchIndex
+            with torch.no_grad():
+                accuracy = MulticlassAccuracy(num_classes=10)
+                lossValue = loss.item()
+                printTrainingStatus(
+                    lossValue,
+                    batchIndex,
+                    datasetSize,
+                    batchSize,
                 )
-                // logFrequency,
-            )
+                mlflow.log_metric(
+                    key="Training Loss",
+                    value=lossValue,
+                    step=(
+                        (nbBatches // logFrequency + 1) * logFrequency * epoch
+                        + batchIndex
+                    ),
+                )
+                mlflow.log_metric(
+                    key="Training accuracy",
+                    value=accuracy(model(X), y),
+                    step=(
+                        (nbBatches // logFrequency + 1) * logFrequency * epoch
+                        + batchIndex
+                    ),
+                )
 
     validationLoss = computeLoss(
         dataloader=validationDataloader, model=model, loss_fn=loss_fn
@@ -87,3 +98,16 @@ def printTrainingStatus(
 ):
     currentExample = batch * batchSize + 1
     print(f"loss: {lossValue:>7f}  [{currentExample:>5d}/{datasetSize:>5d}]")
+
+
+@torch.no_grad()
+def computeMetrics(
+    dataloader: DataLoader,
+    model: nn.Module,
+) -> float:
+    model.eval()
+    acc = 0
+    for X, y in dataloader:
+        accuracy = MulticlassAccuracy(num_classes=10)
+        acc += accuracy(model(X), y)
+    return acc / len(dataloader)

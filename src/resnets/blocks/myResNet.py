@@ -80,15 +80,15 @@ class ResNetMiniDeep(nn.Module):
 
 
 class LMResNetMiniDeep(nn.Module):
-    def __init__(self, scale=16):
+    def __init__(self, scale=16, depth=16, nbDownsampling=2):
         super().__init__()
         self.conv1_x = Conv2d(3, scale, 3, 2)
         self.max_pooling1 = MaxPool2d(3, 2, 1)
         self.initLM = ResidualBlock(scale, scale, 3)
-        self.conv2_x = nn.ModuleList([LMBlock(scale, scale, 3) for _ in range(2)])
+        self.conv2_x = nn.ModuleList([LMBlock(scale, scale, 3) for _ in range(depth)])
         self.downSample = ResidualBlockWithDownsampling(scale, scale * 2, 3)
         self.conv3_x = nn.ModuleList(
-            [LMBlock(scale * 2, scale * 2, 3) for _ in range(2)]
+            [LMBlock(scale * 2, scale * 2, 3) for _ in range(depth)]
         )
         self.global_average_pooling = AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(scale, 10)
@@ -103,5 +103,35 @@ class LMResNetMiniDeep(nn.Module):
             conv2 = block(conv2)
         conv2 = conv2[..., 1]
         gap = self.global_average_pooling(conv2).flatten(1)
+        fc = self.fc(gap)
+        return fc
+
+
+# from pydantic import BaseModel
+
+
+# class LMResNetMiniDeepParameters(BaseModel):
+#     downSamplings: int
+
+
+class ResNetMedium(nn.Module):
+    def __init__(self, scale=16):
+        super().__init__()
+        self.conv1_x = Conv2d(3, scale, 7, 2)
+        self.max_pooling1 = MaxPool2d(3, 2, 1)
+        self.conv2_x = nn.Sequential(ResidualBlock(scale, scale, 3))
+        self.conv3_x = nn.Sequential(
+            ResidualBlockWithDownsampling(scale, scale * 2, 3),
+            ResidualBlock(scale * 2, scale * 2, 3),
+        )
+        self.global_average_pooling = AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(scale * 2, 10)
+
+    def forward(self, x: Tensor):
+        conv1 = self.conv1_x(x)
+        pool1 = self.max_pooling1(conv1)
+        conv2 = self.conv2_x(pool1)
+        conv3 = self.conv3_x(conv2)
+        gap = self.global_average_pooling(conv3).flatten(1)
         fc = self.fc(gap)
         return fc
