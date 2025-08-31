@@ -1,5 +1,14 @@
 from pydantic import BaseModel, model_validator
+from torch.nn.parameter import Parameter
+from torch.optim.optimizer import ParamsT
 from torch.utils.data import Dataset
+import torch
+from typing import Iterator
+
+
+class WandbParameters(BaseModel):
+    entity: str
+    project: str
 
 
 class SplittingRatios(BaseModel):
@@ -21,11 +30,30 @@ class GlobalParameters(BaseModel):
     randomSeed: int
 
 
-class TrainingParameters(BaseModel):
-    epochs: int
+class ModelParameters(BaseModel):
+    pass
+
+
+class OptimiserParameters(BaseModel):
+    def createOptimiser(self, modelParameters: ParamsT) -> torch.optim.Optimizer:
+        raise NotImplementedError(
+            "createOptimiser method is missing for class " + self.__class__.__name__
+        )
+
+
+class AdamParameters(OptimiserParameters):
     learningRate: float
     betas: tuple[float, float]
-    optimizer: str
+
+    def createOptimiser(self, modelParameters):
+        return torch.optim.Adam(
+            params=modelParameters, lr=self.learningRate, betas=self.betas
+        )
+
+
+class TrainingParameters(BaseModel):
+    epochs: int
+    optimiserParameters: OptimiserParameters
     batchSize: int
     shuffle: bool
     loss: str
@@ -42,3 +70,9 @@ class TrainingDatasets(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+
+class ExperimentParameters(BaseModel):
+    trainingParameters: TrainingParameters
+    globalParameters: GlobalParameters
+    wandbParameters: WandbParameters

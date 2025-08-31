@@ -7,10 +7,8 @@ from resnets.training.train import train
     "--mode",
     default="inference",
     type=click.Choice(["inference", "training"]),
-    help="Mode of operation",
 )
 def main(mode):
-    print("Hello from resnets!")
     if mode == "training":
         train()
 

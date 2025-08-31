@@ -6,12 +6,12 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.2.1",
-    "mlflow>=3.2.0",
     "numpy>=2.3.1",
     "torch>=2.7.0",
     "torchinfo>=1.8.0",
     "torchmetrics>=1.8.1",
     "torchvision>=0.23.0",
+    "wandb>=0.21.2",
 ]
 
 [build-system]
@@ -22,7 +22,6 @@ build-backend = "uv_build"
 dev = [
     "jupyter>=1.1.1",
     "matplotlib>=3.10.5",
-    "mlflow>=3.3.1",
     "print-pretty-tree>=0.0.3",
     "pytest>=8.4.1",
     "ruff>=0.12.3",

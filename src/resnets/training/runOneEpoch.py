@@ -5,9 +5,9 @@ from torch.utils.data import DataLoader
 from torch import nn
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
-import mlflow
 import torch.nn.functional as F
 import math
+import wandb
 from torchmetrics.classification import MulticlassAccuracy
 
 
@@ -38,27 +38,21 @@ def runOneEpoch(
                     datasetSize,
                     batchSize,
                 )
-                mlflow.log_metric(
-                    key="Training Loss",
-                    value=lossValue,
-                    step=(
-                        (nbBatches // logFrequency + 1) * logFrequency * epoch
-                        + batchIndex
-                    ),
+                wandb.log(
+                    {"Training Loss": lossValue},
+                    step=(nbBatches // logFrequency + 1) * logFrequency * epoch
+                    + batchIndex,
                 )
-                mlflow.log_metric(
-                    key="Training accuracy",
-                    value=accuracy(model(X), y),
-                    step=(
-                        (nbBatches // logFrequency + 1) * logFrequency * epoch
-                        + batchIndex
-                    ),
+                wandb.log(
+                    {"Training accuracy": accuracy(model(X), y)},
+                    step=(nbBatches // logFrequency + 1) * logFrequency * epoch
+                    + batchIndex,
                 )
 
     validationLoss = computeLoss(
         dataloader=validationDataloader, model=model, loss_fn=loss_fn
     )
-    mlflow.log_metric(key="Validation Loss", value=validationLoss, step=epoch)
+    wandb.log({"Validation Loss": validationLoss}, step=epoch)
 
 
 def trainingStep(

@@ -1,19 +1,21 @@
 # """Training."""
-from mlflow import artifacts
+import wandb
 import torch
 from torch import nn
 from resnets.training.runNEpochs import runNEpochs
 from torch.utils.data import random_split
 from resnets.training.TrainingSettings import (
+    AdamParameters,
+    OptimiserParameters,
     SplittingRatios,
     GlobalParameters,
     TrainingParameters,
     TrainingDatasets,
+    WandbParameters,
+    ExperimentParameters,
 )
 
 from torchinfo import summary
-import mlflow.pytorch as mlpt
-import mlflow
 from resnets.training.runOneEpoch import computeLoss
 from torch.utils.data import DataLoader
 
@@ -26,10 +28,6 @@ from resnets.blocks.myResNet import (
     ResNetMiniDeep,
     LMResNetMiniDeep,
 )
-
-
-def load():
-    pass
 
 
 def train():
@@ -61,30 +59,16 @@ def train():
         testingDataset=testingDataset,
     )
 
-    # classes = (
-    #     "plane",
-    #     "car",
-    #     "bird",
-    #     "cat",
-    #     "deer",
-    #     "dog",
-    #     "frog",
-    #     "horse",
-    #     "ship",
-    #     "truck",
-    # )
-
     modelChoice = ResNetMedium()
-    modelName = modelChoice._get_name()
-    experimentName = "ResNet flavors"
+    entity = "adrien-jamelot-dev-personal-project"
+    project = "resnets-dynamics"
+    wandbParameters = WandbParameters(entity=entity, project=project)
     loss_fn = nn.CrossEntropyLoss()
     globalParameters = GlobalParameters(randomSeed=42)
-
+    optimiserParameters = AdamParameters(learningRate=5e-3, betas=(0.9, 0.8))
     trainingParameters = TrainingParameters(
-        epochs=20,
-        learningRate=1e-3,
-        betas=(0.9, 0.8),
-        optimizer="Adam",
+        epochs=5,
+        optimiserParameters=optimiserParameters,
         batchSize=64,
         shuffle=True,
         loss=loss_fn.__class__.__name__,
@@ -93,20 +77,18 @@ def train():
         validationSize=len(validationDataset),
         testingSize=len(testingDataset),
     )
-
-    optimizer = torch.optim.Adam(
-        modelChoice.parameters(),
-        lr=trainingParameters.learningRate,
-        betas=trainingParameters.betas,
+    experimentParameters = ExperimentParameters(
+        globalParameters=globalParameters,
+        trainingParameters=trainingParameters,
+        wandbParameters=wandbParameters,
     )
-    mlflow.set_experiment(experiment_name=experimentName)
-    with mlflow.start_run():
-        mlflow.log_params(trainingParameters.model_dump())
-        # Log model summary.
-        with open("resnet_summary.txt", "w") as f:
-            f.write(str(summary(modelChoice)))
-            mlflow.log_artifact("resnet_summary.txt")
 
+    with wandb.init(config=experimentParameters.model_dump()) as run:
+        optimizer = (
+            experimentParameters.trainingParameters.optimiserParameters.createOptimiser(
+                modelChoice.parameters()
+            )
+        )
         runNEpochs(
             trainingDatasets=trainingDatasets,
             trainingParameters=trainingParameters,
@@ -117,13 +99,7 @@ def train():
         testingDataloader = DataLoader(
             testingDataset, batch_size=batch_size, shuffle=False, num_workers=2
         )
-        X = next(iter(testingDataloader))
         testingLoss = computeLoss(
             dataloader=testingDataloader, model=modelChoice, loss_fn=loss_fn
         )
-        mlflow.log_metric(key="Testing Loss", value=testingLoss)
-        mlpt.log_model(
-            modelChoice,
-            name=modelName,
-            input_example=X[0].numpy(),
-        )
+        run.log({"Testing Loss": testingLoss})
