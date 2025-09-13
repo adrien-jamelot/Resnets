@@ -8,6 +8,7 @@ from torch.optim import Optimizer
 import torch.nn.functional as F
 import math
 import wandb
+import metaflow
 from torchmetrics.classification import MulticlassAccuracy
 
 
@@ -49,10 +50,15 @@ def runOneEpoch(
                     + batchIndex,
                 )
 
+    trainingLoss = computeLoss(
+        dataloader=validationDataloader, model=model, loss_fn=loss_fn
+    )
     validationLoss = computeLoss(
         dataloader=validationDataloader, model=model, loss_fn=loss_fn
     )
     wandb.log({"Validation Loss": validationLoss}, step=epoch)
+    wandb.log({"Total Training Loss": trainingLoss}, step=epoch)
+    return trainingLoss
 
 
 def trainingStep(

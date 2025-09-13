@@ -21,3 +21,4 @@ resnet_summary.txt
 /wandb/
 /.metaflow/
 /photos.py
+/*.tfvars

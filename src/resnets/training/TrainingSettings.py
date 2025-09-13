@@ -1,4 +1,4 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, model_serializer
 from torch.nn.parameter import Parameter
 from torch.optim.optimizer import ParamsT
 from torch.utils.data import Dataset
@@ -51,9 +51,17 @@ class AdamParameters(OptimiserParameters):
         )
 
 
+class OptimiserWrapper(BaseModel):
+    optimiser: OptimiserParameters
+
+    @model_serializer
+    def serialise_optimiser(self):
+        return self.optimiser.model_dump()
+
+
 class TrainingParameters(BaseModel):
     epochs: int
-    optimiserParameters: OptimiserParameters
+    optimiserParameters: OptimiserWrapper
     batchSize: int
     shuffle: bool
     loss: str

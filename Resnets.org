@@ -1,0 +1,11 @@
+#+todo: NEXT(n) PROJECT(p) SOMEDAY(s) | CANCELLED(c) DONE(d)
+#+startup: indent
+* Resnets
+** Capture
+*** Scale on GCP
+Must monitor costs
+*** Add hyperparameter optimisation engine
+Ray-tune, optuna?
+** Agenda
+*** NEXT Unit-test Optimiser Wrapper                               :techDebt:
+*** NEXT Fix steps count in trainint                                    :bug:
