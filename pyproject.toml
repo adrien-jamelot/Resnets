@@ -6,8 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.2.1",
+    "metaflow>=2.19.3",
     "numpy>=2.3.1",
-    "ray>=2.49.1",
+    "optuna>=4.5.0",
+    "optuna-integration>=4.5.0",
+    "ray[tune]>=2.49.1",
     "torch>=2.7.0",
     "torchinfo>=1.8.0",
     "torchmetrics>=1.8.1",
@@ -22,12 +25,14 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "jupyter>=1.1.1",
+    "jupyterlab-lsp>=5.2.0",
     "kubernetes>=33.1.0",
     "matplotlib>=3.10.5",
     "metaflow>=2.18.2",
     "print-pretty-tree>=0.0.3",
     "pytest>=8.4.1",
     "ruff>=0.12.3",
+    "scikit-learn>=1.7.2",
 ]
 
 [[tool.uv.index]]

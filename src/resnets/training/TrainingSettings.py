@@ -3,7 +3,6 @@ from torch.nn.parameter import Parameter
 from torch.optim.optimizer import ParamsT
 from torch.utils.data import Dataset
 import torch
-from typing import Iterator
 
 
 class WandbParameters(BaseModel):

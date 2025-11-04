@@ -1,21 +1,8 @@
-# import click  #
-
-
-# @click.command()
-# @click.option(
-#     "--mode",
-#     default="inference",
-#     type=click.Choice(["inference", "training"]),
-# )
-# def main(mode):
-#     print(mode)
-#     print("hello")
-#     if mode == "inference":
-#         print("hi!")
-#         train()
-
 # """Training."""
-from ray.tune.schedulers import ASHAScheduler
+import os
+from optuna.storages import JournalStorage
+from optuna.storages.journal import JournalFileBackend
+import optuna
 import wandb
 import torch
 from torch import nn
@@ -32,21 +19,12 @@ from resnets.training.TrainingSettings import (
     ExperimentParameters,
 )
 
-from torchinfo import summary
-from resnets.training.runOneEpoch import computeLoss
-from torch.utils.data import DataLoader
-
-
 import torchvision
 import torchvision.transforms as transforms
-from resnets.blocks.myResNet import (
-    ResNetMedium,
-    ResNetMini,
-    ResNetMiniDeep,
-    LMResNetMiniDeep,
-)
+from resnets.blocks.myResNet import ResNetMedium
 from metaflow.flowspec import FlowSpec
 from metaflow.decorators import step
+from metaflow.multicore_utils import parallel_map
 
 
 class TrainingFlow(FlowSpec):
@@ -88,83 +66,76 @@ class TrainingFlow(FlowSpec):
         self.splittingRatios = splittingRatios
         self.batch_size = batch_size
         self.trainingDatasets = trainingDatasets
-        self.next(self.choose_settings)
+        self.next(self.run_hop)
 
     @step
-    def choose_settings(self):
+    def run_hop(self):
         modelChoice = ResNetMedium()
-        entity = "adrien-jamelot-dev-personal-project"
+        entity = "adrien-jamelot-dev-personal-projects"
         project = "resnets-dynamics"
         wandbParameters = WandbParameters(entity=entity, project=project)
         loss_fn = nn.CrossEntropyLoss()
         globalParameters = GlobalParameters(randomSeed=42)
-        optimiserParameters = OptimiserWrapper(
-            optimiser=AdamParameters(learningRate=5e-3, betas=(0.9, 0.8))
-        )
-        trainingParameters = TrainingParameters(
-            epochs=5,
-            optimiserParameters=optimiserParameters,
-            batchSize=64,
-            shuffle=True,
-            loss=loss_fn.__class__.__name__,
-            splittingRatios=self.splittingRatios,
-            trainingSize=len(self.trainingDatasets.trainingDataset),
-            validationSize=len(self.trainingDatasets.validationDataset),
-            testingSize=len(self.trainingDatasets.testingDataset),
-        )
-        optimiserParameters2 = OptimiserWrapper(
-            optimiser=AdamParameters(learningRate=1e-2, betas=(0.9, 0.8))
-        )
-        trainingParameters2 = trainingParameters.model_copy(
-            update={"optimiserParameters": optimiserParameters2}
-        )
-        experimentParameters = ExperimentParameters(
-            globalParameters=globalParameters,
-            trainingParameters=trainingParameters,
-            wandbParameters=wandbParameters,
-        )
-        experimentParameters2 = experimentParameters.model_copy(
-            update={"trainingParameters": trainingParameters2}
-        )
-        self.experimentsParameters = [
-            experimentParameters,
-            experimentParameters2,
-        ]
-        self.trainingParameters = trainingParameters
-        self.loss_fn = loss_fn
-        self.modelChoice = modelChoice
-        self.next(self.run_experiment, foreach="experimentsParameters")
 
-    @step
-    def run_experiment(self):
-        self.experimentParameters = self.input
-        with wandb.init(config=self.experimentParameters.model_dump()) as run:
-            optimizer = self.experimentParameters.trainingParameters.optimiserParameters.optimiser.createOptimiser(
-                self.modelChoice.parameters()
+        from optuna.integration import WeightsAndBiasesCallback
+
+        wandbc = WeightsAndBiasesCallback(
+            wandb_kwargs=wandbParameters.model_dump(), as_multirun=True
+        )
+
+        @wandbc.track_in_wandb()
+        def objective(trial):
+            print(f"Running trial {trial.number=} in process {os.getpid()}")
+            learning_rate = trial.suggest_float(
+                name="learning_rate", low=1e-4, high=1e-3
             )
-            runNEpochs(
+            beta1 = trial.suggest_float(name="beta_1", low=0.6, high=1.0)
+            beta2 = trial.suggest_float(name="beta_2", low=beta1, high=1.0)
+
+            optimiserParameters = OptimiserWrapper(
+                optimiser=AdamParameters(
+                    learningRate=learning_rate, betas=(beta1, beta2)
+                )
+            )
+            trainingParameters = TrainingParameters(
+                epochs=5,
+                optimiserParameters=optimiserParameters,
+                batchSize=64,
+                shuffle=True,
+                loss=loss_fn.__class__.__name__,
+                splittingRatios=self.splittingRatios,
+                trainingSize=len(self.trainingDatasets.trainingDataset),
+                validationSize=len(self.trainingDatasets.validationDataset),
+                testingSize=len(self.trainingDatasets.testingDataset),
+            )
+            experimentParameters = ExperimentParameters(
+                globalParameters=globalParameters,
+                trainingParameters=trainingParameters,
+                wandbParameters=wandbParameters,
+            )
+            wandb.log(experimentParameters.model_dump())
+            optimizer = experimentParameters.trainingParameters.optimiserParameters.optimiser.createOptimiser(
+                modelChoice.parameters()
+            )
+            validationLoss = runNEpochs(
                 trainingDatasets=self.trainingDatasets,
-                trainingParameters=self.experimentParameters.trainingParameters,
-                model=self.modelChoice,
-                loss_fn=self.loss_fn,
+                trainingParameters=experimentParameters.trainingParameters,
+                model=modelChoice,
+                loss_fn=loss_fn,
                 optimizer=optimizer,
             )
-            testingDataloader = DataLoader(
-                self.trainingDatasets.testingDataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                num_workers=2,
-            )
-            testingLoss = computeLoss(
-                dataloader=testingDataloader,
-                model=self.modelChoice,
-                loss_fn=self.loss_fn,
-            )
-            run.log({"Testing Loss": testingLoss})
-        self.next(self.join)
+            return validationLoss
 
-    @step
-    def join(self, inputs):
+        def run_optimization():
+            study = optuna.create_study(
+                study_name="journal_storage_multiprocess",
+                storage=JournalStorage(JournalFileBackend(file_path="./journal.log")),
+                load_if_exists=True,  # Useful for multi-process or multi-node optimization.
+            )
+            study.optimize(objective, n_trials=3, callbacks=[wandbc])
+
+        parallel_map(lambda _: run_optimization(), range(18), max_parallel=6)
+
         self.next(self.end)
 
     @step

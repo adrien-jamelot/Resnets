@@ -107,13 +107,6 @@ class LMResNetMiniDeep(nn.Module):
         return fc
 
 
-# from pydantic import BaseModel
-
-
-# class LMResNetMiniDeepParameters(BaseModel):
-#     downSamplings: int
-
-
 class ResNetMedium(nn.Module):
     def __init__(self, scale=16):
         super().__init__()

@@ -26,7 +26,7 @@ def runNEpochs(
 
     for t in range(trainingParameters.epochs):
         print(f"Epoch {t}\n-------------------------------")
-        runOneEpoch(
+        validationLoss = runOneEpoch(
             trainingDataloader,
             validationDataloader,
             model,
@@ -34,3 +34,4 @@ def runNEpochs(
             optimizer,
             t,
         )
+    return validationLoss

@@ -51,14 +51,14 @@ def runOneEpoch(
                 )
 
     trainingLoss = computeLoss(
-        dataloader=validationDataloader, model=model, loss_fn=loss_fn
+        dataloader=trainingDataloader, model=model, loss_fn=loss_fn
     )
     validationLoss = computeLoss(
         dataloader=validationDataloader, model=model, loss_fn=loss_fn
     )
     wandb.log({"Validation Loss": validationLoss}, step=epoch)
     wandb.log({"Total Training Loss": trainingLoss}, step=epoch)
-    return trainingLoss
+    return validationLoss
 
 
 def trainingStep(
@@ -101,10 +101,7 @@ def printTrainingStatus(
 
 
 @torch.no_grad()
-def computeMetrics(
-    dataloader: DataLoader,
-    model: nn.Module,
-) -> float:
+def computeMetrics(dataloader: DataLoader, model: nn.Module, pp) -> float:
     model.eval()
     acc = 0
     for X, y in dataloader:

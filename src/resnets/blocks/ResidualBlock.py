@@ -1,6 +1,6 @@
-from torch.nn import Conv2d, ReLU, BatchNorm2d
 from torch import nn
 import torch
+from torch.nn import BatchNorm2d, Conv2d, ReLU
 
 
 class ResidualBlock(nn.Module):
